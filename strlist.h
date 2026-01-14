@@ -288,11 +288,13 @@ strlist strlist_elements_str(strlist list, size_t from, size_t n, const char * s
 
 // --- String array
 typedef const char * const * sep_t;
-const sep_t UNIX_PATH_SEP = (const char * const []){ "/", NULL, };
-const sep_t DOS_PATH_SEP  = (const char * const []){ "\\", NULL, };
-const sep_t UNIX_SEP      = (const char * const []){ ":", NULL, };
-const sep_t EXT_SEP       = (const char * const []){ ".", NULL, };
-const sep_t CPP_SEP       = (const char * const []){ "::", ".", "->", NULL, };
+/* Possible examples:
+ *   const sep_t UNIX_PATH_SEP = (const char * const []){ "/", NULL, };
+ *   const sep_t DOS_PATH_SEP  = (const char * const []){ "\\", NULL, };
+ *   const sep_t UNIX_SEP      = (const char * const []){ ":", NULL, };
+ *   const sep_t EXT_SEP       = (const char * const []){ ".", NULL, };
+ *   const sep_t CPP_SEP       = (const char * const []){ "::", ".", "->", NULL, };
+ */
 
 int strlist_strstrlcmp_(const char * s, sep_t sep, const char * * match) {
     for (auto w = sep; *w != NULL; w++) {
