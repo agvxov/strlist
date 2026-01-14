@@ -193,25 +193,6 @@ strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep) {
     return list;
 }
 
-strlist strlist_root_char(strlist list, char sep) {
-    size_t len = strlist_len_char(list, sep);
-    return strlist_elements_char(list, 0, len-1, sep);
-}
-
-strlist strlist_base_char(strlist list, char sep) {
-    size_t len = strlist_len_char(list, sep);
-    return strlist_elements_char(list, len-1, 1, sep);
-}
-
-strlist strlist_head_char(strlist list, char sep) {
-    return strlist_elements_char(list, 0, 1, sep);
-}
-
-strlist strlist_tail_char(strlist list, char sep) {
-    size_t len = strlist_len_char(list, sep);
-    return strlist_elements_char(list, 1, len-1, sep);
-}
-
 // String variants
 size_t strlist_len_str(strlist list, const char * sep) {
     const char * s = list;
