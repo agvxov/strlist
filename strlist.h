@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <string.h>
 
+thread_local size_t _strlist_len_tmp;
+
 /* The string based list is a common pattern,
  *  as it is the most intuitive way to serialize a list.
  *
@@ -26,10 +28,11 @@
  *  The result overwrites the `list` argument and is returned.
  *  (We know that this may never result in an overflow.)
  */
-//char * strlist_component(char * list, size_t n, sep_t sep);
+//char * strlist_element(char * list, size_t n, sep_t sep);
 /* This function returns a range.
  */
-//char * strlist_components(char * list, size_t from, size_t to, sep_t sep);
+//char * strlist_elements(char * list, size_t from, size_t to, sep_t sep);
+
 /* For convencience, we offer these in 3 overloads
  *  sharing a generic interface.
  *
@@ -38,7 +41,7 @@
  * String[] - slowest; null terminated array of strings
  */
 
-/* The following are shorthands for component()/components(),
+/* The following are shorthands for element()/elements(),
  *  with specific numbers which may or may not be length specific
  *
  * Visual explanation:
@@ -76,8 +79,12 @@
 //sep_t CPP_SEP       = { "::", ".", "->", NULL, };
 //sep_t EXT_SEP       = { ".", NULL, };
 
+// XXX i might be able to generic element and elements functions
+
 typedef char* strlist;
 
+// Char variants
+// XXX should be using strchr
 size_t strlist_len_char(strlist list, char sep) {
     const char * s = list;
 
@@ -86,30 +93,28 @@ size_t strlist_len_char(strlist list, char sep) {
     if (s[0] == sep) { ++s; }
 
     size_t r = 1;
-    for (const char * ss = s; *ss != '\0'; ss++) {
-        if (*ss == sep) {
-            ++r;
-        }
+    while ((s = strchr(s, sep))) {
+        ++s;
+        ++r;
     }
     return r;
 }
 
-size_t strlist_component_position_char(strlist list, size_t n, char sep) {
+size_t strlist_element_position_char(strlist list, size_t n, char sep) {
     const char * s = list;
 
-    //if (n == 0) { return 0; }
+    if (n == 0) { return 0; }
 
     size_t i = 0;
 
     const char * start = s;
     while (true) {
-        if (*start == '\0') {
+        start = strchr(start, sep);
+        if (!start) {
             return SIZE_MAX;
         }
-        if (*start == sep) {
-            ++i;
-        }
         ++start;
+        ++i;
         if (i == n) {
             break;
         }
@@ -118,17 +123,16 @@ size_t strlist_component_position_char(strlist list, size_t n, char sep) {
     return start - s;
 }
 
-char * strlist_component_char(strlist list, size_t n, char sep) {
+char * strlist_element_char(strlist list, size_t n, char sep) {
     // Find start
-    const size_t start_pos = strlist_component_position_char(list, n, sep);
+    const size_t start_pos = strlist_element_position_char(list, n, sep);
     if (start_pos == SIZE_MAX) { goto out_of_range; }
     const char * start = list + start_pos;
 
     // Find end
-    const char * end = start;
-    while (*end != sep
-    &&     *end != '\0') {
-        ++end;
+    const char * end = strchr(start, sep);
+    if (!end) {
+        end = start + strlen(start);
     }
 
     // Finalize
@@ -141,14 +145,14 @@ char * strlist_component_char(strlist list, size_t n, char sep) {
     return list;
 }
 
-strlist strlist_components(strlist list, size_t from, size_t n, char sep) {
+strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep) {
     // Find start
     char * start;
     if (from == 0) {
         start = list;
     } else {
         const bool correction = (list[0] == sep);
-        const size_t start_pos = strlist_component_position_char(
+        const size_t start_pos = strlist_element_position_char(
             list + correction,
             from,
             sep
@@ -158,21 +162,105 @@ strlist strlist_components(strlist list, size_t from, size_t n, char sep) {
     }
 
     // Find end
-    const size_t end_component_start_pos = strlist_component_position_char(
-        from == 0 && list[0] == sep ? start + 1 : start,
-        n,
-        sep
-    );
-    if (end_component_start_pos == SIZE_MAX) {
-        const size_t end_pos = strlen(start);
-        memmove(list, start, end_pos);
-        list[end_pos] = '\0';
-        return list;
+    char * end;
+    do {
+        char * search_end_from = (from == 0 && list[0] == sep ? start + 1 : start);
+        const size_t end_element_start_pos = strlist_element_position_char(
+            search_end_from,
+            n ? n-1 : n,
+            sep
+        );
+        if (end_element_start_pos == SIZE_MAX) {
+            const size_t end_pos = strlen(start);
+            memmove(list, start, end_pos);
+            list[end_pos] = '\0';
+            return list;
+        }
+        end = search_end_from + end_element_start_pos;
+        while (*end != sep
+        &&     *end != '\0') {
+            ++end;
+        }
+    } while (0);
+
+    // Finalize
+    memmove(list, start, end - start);
+    list[end - start] = '\0';
+    return list;
+
+  out_of_range:
+    list[0] = '\0';
+    return list;
+}
+
+strlist strlist_root_char(strlist list, char sep) {
+    size_t len = strlist_len_char(list, sep);
+    return strlist_elements_char(list, 0, len-1, sep);
+}
+
+strlist strlist_base_char(strlist list, char sep) {
+    size_t len = strlist_len_char(list, sep);
+    return strlist_elements_char(list, len-1, 1, sep);
+}
+
+strlist strlist_head_char(strlist list, char sep) {
+    return strlist_elements_char(list, 0, 1, sep);
+}
+
+strlist strlist_tail_char(strlist list, char sep) {
+    size_t len = strlist_len_char(list, sep);
+    return strlist_elements_char(list, 1, len-1, sep);
+}
+
+// String variants
+size_t strlist_len_str(strlist list, const char * sep) {
+    const char * s = list;
+
+    if (s[0] == '\0') { return 0; }
+
+    if (!strncmp(s, sep, strlen(sep))) { s += strlen(sep); }
+
+    size_t r = 1;
+    while ((s = strstr(s, sep))) {
+        s += strlen(sep);
+        ++r;
     }
-    char * end = list + end_component_start_pos;
-    while (*end != sep
-    &&     *end != '\0') {
-        ++end;
+    return r;
+}
+
+size_t strlist_element_position_str(strlist list, size_t n, const char * sep) {
+    const char * s = list;
+
+    if (n == 0) { return 0; }
+
+    size_t i = 0;
+
+    const char * start = s;
+    while (true) {
+        start = strstr(start, sep);
+        if (!start) {
+            return SIZE_MAX;
+        }
+        start += strlen(sep);
+        ++i;
+        if (i == n) {
+            break;
+        }
+    }
+
+    return start - s;
+}
+
+char * strlist_element_str(strlist list, size_t n, const char * sep) {
+    // Find start
+    const size_t start_pos = strlist_element_position_str(list, n, sep);
+    if (start_pos == SIZE_MAX) { goto out_of_range; }
+    const char * start = list + start_pos;
+
+    // Find end
+    const char * end = strstr(start, sep);
+    if (!end) {
+        end = start + strlen(start);
     }
 
     // Finalize
@@ -185,23 +273,95 @@ strlist strlist_components(strlist list, size_t from, size_t n, char sep) {
     return list;
 }
 
-strlist strlist_root(strlist list, char sep) {
-    size_t len = strlist_len_char(list, sep);
-    return strlist_components(list, 0, len-1, sep);
+strlist strlist_elements_str(strlist list, size_t from, size_t n, const char * sep) {
+    const bool has_leading_separator = !strncmp(list, sep, strlen(sep));
+
+    // Find start
+    char * start;
+    if (from == 0) {
+        start = list;
+    } else {
+        const int correction = (has_leading_separator ? strlen(sep) : 0);
+        const size_t start_pos = strlist_element_position_str(
+            list + correction,
+            from,
+            sep
+        );
+        if (start_pos == SIZE_MAX) { goto out_of_range; }
+        start = list + start_pos + correction;
+    }
+
+    // Find end
+    char * end;
+    do {
+        char * search_end_from = (from == 0 && has_leading_separator
+            ? start + strlen(sep)
+            : start
+        );
+        const size_t end_element_start_pos = strlist_element_position_str(
+            search_end_from,
+            n ? n-1 : n,
+            sep
+        );
+        if (end_element_start_pos == SIZE_MAX) {
+            const size_t end_pos = strlen(start);
+            memmove(list, start, end_pos);
+            list[end_pos] = '\0';
+            return list;
+        }
+        end = search_end_from + end_element_start_pos;
+        end = strstr(end, sep);
+        if (!end) {
+            end = search_end_from + end_element_start_pos
+                + strlen(search_end_from + end_element_start_pos);
+        }
+    } while (0);
+
+    // Finalize
+    memmove(list, start, end - start);
+    list[end - start] = '\0';
+    return list;
+
+  out_of_range:
+    list[0] = '\0';
+    return list;
 }
 
-strlist strlist_base(strlist list, char sep) {
-    size_t len = strlist_len_char(list, sep);
-    return strlist_components(list, len-1, 1, sep);
-}
+// Generics
+#define strlist_len(list, sep) \
+    _Generic(sep                          \
+        , char        : strlist_len_char  \
+        , int         : strlist_len_char  \
+        , char*       : strlist_len_str   \
+        , const char* : strlist_len_str   \
+    )(list, sep)
 
-strlist strlist_head(strlist list, char sep) {
-    return strlist_components(list, 0, 1, sep);
-}
+#define strlist_elements(list, from, n, sep) \
+    _Generic(sep                               \
+        , char        : strlist_elements_char  \
+        , int         : strlist_elements_char  \
+        , char*       : strlist_elements_str   \
+        , const char* : strlist_elements_str   \
+    )(list, from, n, sep)
 
-strlist strlist_tail(strlist list, char sep) {
-    size_t len = strlist_len_char(list, sep);
-    return strlist_components(list, 1, len-1, sep);
-}
+#define strlist_root(list, sep) (\
+    _strlist_len_tmp = strlist_len(list, sep), \
+    strlist_elements(list, 0, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
+)
+
+#define strlist_base(list, sep) (\
+    _strlist_len_tmp = strlist_len(list, sep), \
+    strlist_elements(list, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, 1, sep) \
+)
+
+#define strlist_head(list, sep) \
+    strlist_elements(list, 0, 1, sep)
+
+#define strlist_tail(list, sep) (\
+    _strlist_len_tmp = strlist_len(list, sep), \
+    strlist_elements(list, 1, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
+)
+
+// TODO: add assertions
 
 #endif
