@@ -22,40 +22,6 @@ thread_local size_t _strlist_len_tmp;
  *  + symbol hierarchies (a->b)
  */
 
-//size_t strlist_len(char * list, sep_t sep);
-
-/* This function in an abstract sense performs list indexing.
- *  The result overwrites the `list` argument and is returned.
- *  (We know that this may never result in an overflow.)
- */
-//char * strlist_element(char * list, size_t n, sep_t sep);
-/* This function returns a range.
- */
-//char * strlist_elements(char * list, size_t from, size_t to, sep_t sep);
-
-/* For convencience, we offer these in 3 overloads
- *  sharing a generic interface.
- *
- * Char     - fastest
- * String   - slightly slower
- * String[] - slowest; null terminated array of strings
- */
-
-/* The following are shorthands for element()/elements(),
- *  with specific numbers which may or may not be length specific
- *
- * Visual explanation:
- *       this/is/my/example/path
- *  Root <---------------->
- *  Base                    <-->
- *  Head <-->
- *  Tail      <---------------->
- */
-//char * strlist_root(char * list, sep_t sep);
-//char * strlist_base(char * list, sep_t sep);
-//char * strlist_head(char * list, sep_t sep);
-//char * strlist_tail(char * list, sep_t sep);
-
 /* Notes:
  *  + we very consciously made the decision to not take a destination operand;
  *     you would have to allocate it just the same,
@@ -72,19 +38,9 @@ thread_local size_t _strlist_len_tmp;
  *      name = strlist_head(strlist_base(name, UNIX_PATH_SEP), EXT_SEP);
  */
 
-//typedef const char * const sep_t;
-//sep_t UNIX_PATH_SEP = { "/", NULL, };
-//sep_t DOS_PATH_SEP  = { "\\", NULL, };
-//sep_t UNIX_SEP      = { ":", NULL, };
-//sep_t CPP_SEP       = { "::", ".", "->", NULL, };
-//sep_t EXT_SEP       = { ".", NULL, };
-
-// XXX i might be able to generic element and elements functions
-
 typedef char* strlist;
 
-// Char variants
-// XXX should be using strchr
+// --- Char variants
 size_t strlist_len_char(strlist list, char sep) {
     const char * s = list;
 
@@ -193,7 +149,7 @@ strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep) {
     return list;
 }
 
-// String variants
+// --- String variants
 size_t strlist_len_str(strlist list, const char * sep) {
     const char * s = list;
 
@@ -308,23 +264,215 @@ strlist strlist_elements_str(strlist list, size_t from, size_t n, const char * s
     return list;
 }
 
-// Generics
+// --- String array
+typedef const char * const * sep_t;
+const sep_t UNIX_PATH_SEP = (const char * const []){ "/", NULL, };
+const sep_t DOS_PATH_SEP  = (const char * const []){ "\\", NULL, };
+const sep_t UNIX_SEP      = (const char * const []){ ":", NULL, };
+const sep_t EXT_SEP       = (const char * const []){ ".", NULL, };
+const sep_t CPP_SEP       = (const char * const []){ "::", ".", "->", NULL, };
+
+int strstrlcmp(const char * s, sep_t sep, const char * * match) {
+    for (const char * * w = sep; *w != NULL; w++) {
+        if (!strncmp(s, *w, strlen(*w))) {
+            *match = *w;
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+char * strstrl(const char * s, sep_t sep, const char * * match) {
+    char * r = NULL;
+    for (const char * * w = sep; *w != NULL; w++) {
+        char * i = strstr(s, *w);
+        if (i
+        && (r == NULL || r > i)) {
+            *match = *w;
+            r = i;
+        }
+    }
+
+    return r;
+}
+
+size_t strlist_len_strl(strlist list, sep_t sep) {
+    const char * s = list;
+
+    if (s[0] == '\0') { return 0; }
+
+    do {
+        const char * first_sep;
+        if (!strstrlcmp(s, sep, &first_sep)) {
+            s += strlen(first_sep);
+        }
+    } while (0);
+
+    size_t r = 1;
+    const char * separator;
+    while ((s = strstrl(s, sep, &separator))) {
+        s += strlen(separator);
+        ++r;
+    }
+    return r;
+}
+
+size_t strlist_element_position_strl(strlist list, size_t n, sep_t sep) {
+    const char * s = list;
+
+    if (n == 0) { return 0; }
+
+    size_t i = 0;
+
+    const char * start = s;
+    while (true) {
+        const char * separator;
+        start = strstrl(start, sep, &separator);
+        if (!start) {
+            return SIZE_MAX;
+        }
+        start += strlen(separator);
+        ++i;
+        if (i == n) {
+            break;
+        }
+    }
+
+    return start - s;
+}
+
+char * strlist_element_strl(strlist list, size_t n, sep_t sep) {
+    // Find start
+    const size_t start_pos = strlist_element_position_strl(list, n, sep);
+    if (start_pos == SIZE_MAX) { goto out_of_range; }
+    const char * start = list + start_pos;
+
+    // Find end
+    [[ maybe_unused ]] const char * dummy;
+    const char * end = strstrl(start, sep, &dummy);
+    if (!end) {
+        end = start + strlen(start);
+    }
+
+    // Finalize
+    memmove(list, start, end - start);
+    list[end - start] = '\0';
+    return list;
+
+  out_of_range:
+    list[0] = '\0';
+    return list;
+}
+
+strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
+    const char * leading_separator;
+    const bool has_leading_separator = !strstrlcmp(list, sep, &leading_separator);
+
+    // Find start
+    char * start;
+    if (from == 0) {
+        start = list;
+    } else {
+        const int correction = (has_leading_separator ? strlen(leading_separator) : 0);
+        const size_t start_pos = strlist_element_position_strl(
+            list + correction,
+            from,
+            sep
+        );
+        if (start_pos == SIZE_MAX) { goto out_of_range; }
+        start = list + start_pos + correction;
+    }
+
+    // Find end
+    char * end;
+    do {
+        char * search_end_from = (from == 0 && has_leading_separator
+            ? start + strlen(leading_separator)
+            : start
+        );
+        const size_t end_element_start_pos = strlist_element_position_strl(
+            search_end_from,
+            n ? n-1 : n,
+            sep
+        );
+        if (end_element_start_pos == SIZE_MAX) {
+            const size_t end_pos = strlen(start);
+            memmove(list, start, end_pos);
+            list[end_pos] = '\0';
+            return list;
+        }
+        end = search_end_from + end_element_start_pos;
+        [[ maybe_unused ]] const char * dummy;
+        end = strstrl(end, sep, &dummy);
+        if (!end) {
+            end = search_end_from + end_element_start_pos
+                + strlen(search_end_from + end_element_start_pos);
+        }
+    } while (0);
+
+    // Finalize
+    memmove(list, start, end - start);
+    list[end - start] = '\0';
+    return list;
+
+  out_of_range:
+    list[0] = '\0';
+    return list;
+}
+
+// --- Generics
+/* For convencience, we offer these in 3 overloads
+ *  sharing a generic interface.
+ *
+ * Char     - fastest
+ * String   - slightly slower
+ * String[] - slowest; null terminated array of strings
+ */
+
 #define strlist_len(list, sep) \
-    _Generic(sep                          \
-        , char        : strlist_len_char  \
-        , int         : strlist_len_char  \
-        , char*       : strlist_len_str   \
-        , const char* : strlist_len_str   \
+    _Generic(sep                         \
+        , char        : strlist_len_char \
+        , int         : strlist_len_char \
+        , char*       : strlist_len_str  \
+        , const char* : strlist_len_str  \
+        , sep_t       : strlist_len_strl \
     )(list, sep)
 
+/* This function in an abstract sense performs list indexing.
+ *  The result overwrites the `list` argument and is returned.
+ *  (We know that this may never result in an overflow.)
+ */
+#define strlist_element(list, n, sep) \
+    _Generic(sep                             \
+        , char        : strlist_element_char \
+        , int         : strlist_element_char \
+        , char*       : strlist_element_str  \
+        , const char* : strlist_element_str  \
+        , sep_t       : strlist_element_strl \
+    )(list, n, sep)
+
+/* This function returns a range.
+ */
 #define strlist_elements(list, from, n, sep) \
-    _Generic(sep                               \
-        , char        : strlist_elements_char  \
-        , int         : strlist_elements_char  \
-        , char*       : strlist_elements_str   \
-        , const char* : strlist_elements_str   \
+    _Generic(sep                              \
+        , char        : strlist_elements_char \
+        , int         : strlist_elements_char \
+        , char*       : strlist_elements_str  \
+        , const char* : strlist_elements_str  \
+        , sep_t       : strlist_elements_strl \
     )(list, from, n, sep)
 
+/* The following are shorthands for element()/elements(),
+ *  with specific numbers which may or may not be length specific
+ *
+ * Visual explanation:
+ *       this/is/my/example/path
+ *  Root <---------------->
+ *  Base                    <-->
+ *  Head <-->
+ *  Tail      <---------------->
+ */
 #define strlist_root(list, sep) (\
     _strlist_len_tmp = strlist_len(list, sep), \
     strlist_elements(list, 0, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \

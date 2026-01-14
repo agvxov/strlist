@@ -48,5 +48,19 @@ signed main(void) {
         puts(strlist_tail(strdup(my_dos_txt), "\\n\\r"));
     } while (0);
 
+    puts("\n\n-------------------\n\n");
+
+    do {
+        // NOTE: \n\r replaced with \\n\\r so i can print this without an anurism
+        char my_field[] = "a::b.c->d.e";
+
+        printf("len: %ld\n\n", strlist_len(my_field, CPP_SEP));
+
+        puts(strlist_root(strdup(my_field), CPP_SEP));
+        puts(strlist_base(strdup(my_field), CPP_SEP));
+        puts(strlist_head(strdup(my_field), CPP_SEP));
+        puts(strlist_tail(strdup(my_field), CPP_SEP));
+    } while (0);
+
     return 0;
 }
