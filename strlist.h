@@ -491,6 +491,56 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
     strlist_elements(list, 1, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
 )
 
+/* Iteration
+ *
+ * Faster than a naiv implementation.
+ *
+ * While individual operations are reasonably fast,
+ *  you are not supposed to grind strlist-s like real *lists*,
+ *  instead, you are advised to convert them to a proper data structure
+ *  with a foreach.
+ *
+ * Foreach does not destroy the source strlist to avoid confusion. // XXX
+ */
+#define strlist_iterator(list_, sep_) struct { \
+    char mutable_copy[strlen(list_)+1]; \
+    strlist list;                       \
+    typeof(sep_) sep;                   \
+    size_t i;                           \
+    size_t n;                           \
+    size_t offset;                      \
+    size_t next_offset;                 \
+}
+
+#define strlist_iterator_init(iter, list_, sep_) ( \
+    memcpy(iter.mutable_copy, list_, sizeof(iter.mutable_copy)), \
+    iter.list = list_,                                           \
+    iter.sep = sep_,                                             \
+    iter.i = 0,                                                  \
+    iter.n = strlist_len(list_, sep_)                            \
+)
+
+#define strlist_iterator_next(iter) ( \
+    iter.i == iter.n                                                                \
+        ? NULL                                                                      \
+        :                                                                           \
+            (                                                                       \
+                strlist_element(iter.mutable_copy + iter.next_offset, 0, iter.sep), \
+                iter.offset = iter.next_offset,                                     \
+                iter.next_offset += strlen(iter.mutable_copy + iter.offset) + 1,    \
+                ++iter.i,                                                           \
+                iter.mutable_copy + iter.offset                                     \
+            )                                                                       \
+)                                                                                   \
+
+#define foreach_strlist(list, sep, i_) \
+    for ( \
+      strlist_iterator(list, sep) it = {}; \
+      (it.i != 0 || strlist_iterator_init(it, list, sep)) && it.i < it.n; \
+    ) \
+        for (char * i_ = strlist_iterator_next(it); i_ != NULL; i_ = strlist_iterator_next(it))
+
+
 // TODO: add assertions
 
 #endif
