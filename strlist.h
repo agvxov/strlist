@@ -274,7 +274,7 @@ const sep_t EXT_SEP       = (const char * const []){ ".", NULL, };
 const sep_t CPP_SEP       = (const char * const []){ "::", ".", "->", NULL, };
 
 int strstrlcmp(const char * s, sep_t sep, const char * * match) {
-    for (const char * * w = sep; *w != NULL; w++) {
+    for (auto w = sep; *w != NULL; w++) {
         if (!strncmp(s, *w, strlen(*w))) {
             *match = *w;
             return 0;
@@ -286,7 +286,7 @@ int strstrlcmp(const char * s, sep_t sep, const char * * match) {
 
 char * strstrl(const char * s, sep_t sep, const char * * match) {
     char * r = NULL;
-    for (const char * * w = sep; *w != NULL; w++) {
+    for (auto w = sep; *w != NULL; w++) {
         char * i = strstr(s, *w);
         if (i
         && (r == NULL || r > i)) {
