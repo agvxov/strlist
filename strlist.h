@@ -535,11 +535,15 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
 )                                                                                   \
 
 #define foreach_strlist(list, sep, i_) \
-    for ( \
-      strlist_iterator(list, sep) it = {}; \
+    for (                                                                 \
+      strlist_iterator(list, sep) it = {};                                \
       (it.i != 0 || strlist_iterator_init(it, list, sep)) && it.i < it.n; \
-    ) \
-        for (char * i_ = strlist_iterator_next(it); i_ != NULL; i_ = strlist_iterator_next(it))
+    )                                                                     \
+        for (                                                             \
+          char * i_ = strlist_iterator_next(it);                          \
+          i_ != NULL;                                                     \
+          i_ = strlist_iterator_next(it)                                  \
+        )
 
 
 // TODO: add assertions
