@@ -160,7 +160,7 @@ strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep) {
 }
 
 // --- String variants
-size_t strlist_len_str(strlist list, const char * sep) {
+size_t strlist_len_str(cstrlist list, const char * sep) {
     assert(list);
     assert(sep);
 
@@ -178,7 +178,7 @@ size_t strlist_len_str(strlist list, const char * sep) {
     return r;
 }
 
-size_t strlist_element_position_str(strlist list, size_t n, const char * sep) {
+size_t strlist_element_position_str(cstrlist list, size_t n, const char * sep) {
     assert(list);
     assert(sep);
 
@@ -321,7 +321,7 @@ char * strlist_strstrl_(const char * s, sep_t sep, const char * * match) {
     return r;
 }
 
-size_t strlist_len_strl(strlist list, sep_t sep) {
+size_t strlist_len_strl(cstrlist list, sep_t sep) {
     assert(list);
     assert(sep);
 
@@ -345,7 +345,7 @@ size_t strlist_len_strl(strlist list, sep_t sep) {
     return r;
 }
 
-size_t strlist_element_position_strl(strlist list, size_t n, sep_t sep) {
+size_t strlist_element_position_strl(cstrlist list, size_t n, sep_t sep) {
     assert(list);
     assert(sep);
 
