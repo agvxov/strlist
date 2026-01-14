@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include <assert.h>
 
 thread_local size_t _strlist_len_tmp;
 
@@ -43,6 +44,8 @@ typedef const char* cstrlist;
 
 // --- Char variants
 size_t strlist_len_char(cstrlist list, char sep) {
+    assert(list);
+
     const char * s = list;
 
     if (s[0] == '\0') { return 0; }
@@ -58,6 +61,8 @@ size_t strlist_len_char(cstrlist list, char sep) {
 }
 
 size_t strlist_element_position_char(cstrlist list, size_t n, char sep) {
+    assert(list);
+
     const char * s = list;
 
     if (n == 0) { return 0; }
@@ -81,6 +86,8 @@ size_t strlist_element_position_char(cstrlist list, size_t n, char sep) {
 }
 
 char * strlist_element_char(strlist list, size_t n, char sep) {
+    assert(list);
+
     // Find start
     const size_t start_pos = strlist_element_position_char(list, n, sep);
     if (start_pos == SIZE_MAX) { goto out_of_range; }
@@ -103,6 +110,8 @@ char * strlist_element_char(strlist list, size_t n, char sep) {
 }
 
 strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep) {
+    assert(list);
+
     // Find start
     char * start;
     if (from == 0) {
@@ -152,6 +161,9 @@ strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep) {
 
 // --- String variants
 size_t strlist_len_str(strlist list, const char * sep) {
+    assert(list);
+    assert(sep);
+
     const char * s = list;
 
     if (s[0] == '\0') { return 0; }
@@ -167,6 +179,9 @@ size_t strlist_len_str(strlist list, const char * sep) {
 }
 
 size_t strlist_element_position_str(strlist list, size_t n, const char * sep) {
+    assert(list);
+    assert(sep);
+
     const char * s = list;
 
     if (n == 0) { return 0; }
@@ -190,6 +205,9 @@ size_t strlist_element_position_str(strlist list, size_t n, const char * sep) {
 }
 
 char * strlist_element_str(strlist list, size_t n, const char * sep) {
+    assert(list);
+    assert(sep);
+
     // Find start
     const size_t start_pos = strlist_element_position_str(list, n, sep);
     if (start_pos == SIZE_MAX) { goto out_of_range; }
@@ -212,6 +230,9 @@ char * strlist_element_str(strlist list, size_t n, const char * sep) {
 }
 
 strlist strlist_elements_str(strlist list, size_t from, size_t n, const char * sep) {
+    assert(list);
+    assert(sep);
+
     const bool has_leading_separator = !strncmp(list, sep, strlen(sep));
 
     // Find start
@@ -273,6 +294,7 @@ const sep_t UNIX_SEP      = (const char * const []){ ":", NULL, };
 const sep_t EXT_SEP       = (const char * const []){ ".", NULL, };
 const sep_t CPP_SEP       = (const char * const []){ "::", ".", "->", NULL, };
 
+// XXX make private
 int strstrlcmp(const char * s, sep_t sep, const char * * match) {
     for (auto w = sep; *w != NULL; w++) {
         if (!strncmp(s, *w, strlen(*w))) {
@@ -299,6 +321,9 @@ char * strstrl(const char * s, sep_t sep, const char * * match) {
 }
 
 size_t strlist_len_strl(strlist list, sep_t sep) {
+    assert(list);
+    assert(sep);
+
     const char * s = list;
 
     if (s[0] == '\0') { return 0; }
@@ -320,6 +345,9 @@ size_t strlist_len_strl(strlist list, sep_t sep) {
 }
 
 size_t strlist_element_position_strl(strlist list, size_t n, sep_t sep) {
+    assert(list);
+    assert(sep);
+
     const char * s = list;
 
     if (n == 0) { return 0; }
@@ -344,6 +372,9 @@ size_t strlist_element_position_strl(strlist list, size_t n, sep_t sep) {
 }
 
 char * strlist_element_strl(strlist list, size_t n, sep_t sep) {
+    assert(list);
+    assert(sep);
+
     // Find start
     const size_t start_pos = strlist_element_position_strl(list, n, sep);
     if (start_pos == SIZE_MAX) { goto out_of_range; }
@@ -367,6 +398,9 @@ char * strlist_element_strl(strlist list, size_t n, sep_t sep) {
 }
 
 strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
+    assert(list);
+    assert(sep);
+
     const char * leading_separator;
     const bool has_leading_separator = !strstrlcmp(list, sep, &leading_separator);
 
@@ -542,8 +576,5 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
           i_ != NULL;                                                     \
           i_ = strlist_iterator_next(it)                                  \
         )
-
-
-// TODO: add assertions
 
 #endif
