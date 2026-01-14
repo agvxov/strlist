@@ -39,9 +39,10 @@ thread_local size_t _strlist_len_tmp;
  */
 
 typedef char* strlist;
+typedef const char* cstrlist;
 
 // --- Char variants
-size_t strlist_len_char(strlist list, char sep) {
+size_t strlist_len_char(cstrlist list, char sep) {
     const char * s = list;
 
     if (s[0] == '\0') { return 0; }
@@ -56,7 +57,7 @@ size_t strlist_len_char(strlist list, char sep) {
     return r;
 }
 
-size_t strlist_element_position_char(strlist list, size_t n, char sep) {
+size_t strlist_element_position_char(cstrlist list, size_t n, char sep) {
     const char * s = list;
 
     if (n == 0) { return 0; }
