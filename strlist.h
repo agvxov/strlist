@@ -505,7 +505,6 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
  */
 #define strlist_iterator(list_, sep_) struct { \
     char mutable_copy[strlen(list_)+1]; \
-    strlist list;                       \
     typeof(sep_) sep;                   \
     size_t i;                           \
     size_t n;                           \
@@ -515,7 +514,6 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
 
 #define strlist_iterator_init(iter, list_, sep_) ( \
     memcpy(iter.mutable_copy, list_, sizeof(iter.mutable_copy)), \
-    iter.list = list_,                                           \
     iter.sep = sep_,                                             \
     iter.i = 0,                                                  \
     iter.n = strlist_len(list_, sep_)                            \
