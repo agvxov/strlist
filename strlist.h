@@ -294,8 +294,7 @@ const sep_t UNIX_SEP      = (const char * const []){ ":", NULL, };
 const sep_t EXT_SEP       = (const char * const []){ ".", NULL, };
 const sep_t CPP_SEP       = (const char * const []){ "::", ".", "->", NULL, };
 
-// XXX make private
-int strstrlcmp(const char * s, sep_t sep, const char * * match) {
+int strlist_strstrlcmp_(const char * s, sep_t sep, const char * * match) {
     for (auto w = sep; *w != NULL; w++) {
         if (!strncmp(s, *w, strlen(*w))) {
             *match = *w;
@@ -306,7 +305,7 @@ int strstrlcmp(const char * s, sep_t sep, const char * * match) {
     return 1;
 }
 
-char * strstrl(const char * s, sep_t sep, const char * * match) {
+char * strlist_strstrl_(const char * s, sep_t sep, const char * * match) {
     char * r = NULL;
     for (auto w = sep; *w != NULL; w++) {
         char * i = strstr(s, *w);
@@ -330,14 +329,14 @@ size_t strlist_len_strl(strlist list, sep_t sep) {
 
     do {
         const char * first_sep;
-        if (!strstrlcmp(s, sep, &first_sep)) {
+        if (!strlist_strstrlcmp_(s, sep, &first_sep)) {
             s += strlen(first_sep);
         }
     } while (0);
 
     size_t r = 1;
     const char * separator;
-    while ((s = strstrl(s, sep, &separator))) {
+    while ((s = strlist_strstrl_(s, sep, &separator))) {
         s += strlen(separator);
         ++r;
     }
@@ -357,7 +356,7 @@ size_t strlist_element_position_strl(strlist list, size_t n, sep_t sep) {
     const char * start = s;
     while (true) {
         const char * separator;
-        start = strstrl(start, sep, &separator);
+        start = strlist_strstrl_(start, sep, &separator);
         if (!start) {
             return SIZE_MAX;
         }
@@ -382,7 +381,7 @@ char * strlist_element_strl(strlist list, size_t n, sep_t sep) {
 
     // Find end
     [[ maybe_unused ]] const char * dummy;
-    const char * end = strstrl(start, sep, &dummy);
+    const char * end = strlist_strstrl_(start, sep, &dummy);
     if (!end) {
         end = start + strlen(start);
     }
@@ -402,7 +401,7 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
     assert(sep);
 
     const char * leading_separator;
-    const bool has_leading_separator = !strstrlcmp(list, sep, &leading_separator);
+    const bool has_leading_separator = !strlist_strstrlcmp_(list, sep, &leading_separator);
 
     // Find start
     char * start;
@@ -439,7 +438,7 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
         }
         end = search_end_from + end_element_start_pos;
         [[ maybe_unused ]] const char * dummy;
-        end = strstrl(end, sep, &dummy);
+        end = strlist_strstrl_(end, sep, &dummy);
         if (!end) {
             end = search_end_from + end_element_start_pos
                 + strlen(search_end_from + end_element_start_pos);
