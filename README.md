@@ -29,7 +29,7 @@ auto l = strlist_len(list, ',');
 auto cat = strlist_element(strdup(list), ',', l-1);
 
 // Get range
-auto two_three = strlist_element(strdup(list), ',', /*from*/ 1, /*n*/ 2);
+auto two_three = strlist_element(strdup(list), ',', /*from index*/ 1, /*n*/ 2);
 
 /* Range shorthands
  * Visual explanation:
