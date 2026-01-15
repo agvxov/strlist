@@ -6,8 +6,8 @@
 #include <string.h>
 #include <assert.h>
 
-/* The string based list is a common pattern,
- *  as it is the most intuitive way to serialize a list.
+/* String list library.
+ * A string list is a list encoded as a string, delimited by some token.
  */
 typedef char* strlist;
 typedef const char* cstrlist;
