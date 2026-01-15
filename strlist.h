@@ -6,21 +6,8 @@
 #include <string.h>
 #include <assert.h>
 
-thread_local size_t _strlist_len_tmp;
-
 /* The string based list is a common pattern,
  *  as it is the most intuitive way to serialize a list.
- *
- * In many languages you would handle it by instantiating
- *  an actual list by means of splitting,
- *  but in C we can often do better
- *  (and we dont have general lists to begin with).
- *
- * Examples would include:
- *  + file paths (a/b)
- *  + file extensions (a.b)
- *  + unix style option lists (a:b)
- *  + symbol hierarchies (a->b)
  */
 
 /* Notes:
@@ -31,12 +18,6 @@ thread_local size_t _strlist_len_tmp;
  *  + copy the result to the start of the string so that assuming the allocated length
  *     of the return value is not a footgun
  *  + a strlist is considered to have 0 elements if and only if when the string is of length 0
- */
-
-/* Example:
- *  Getting the absolute basename of a file.
- *      char name[] = "this/is/my.file.example";
- *      name = strlist_head(strlist_base(name, UNIX_PATH_SEP), EXT_SEP);
  */
 
 typedef char* strlist;
@@ -499,7 +480,7 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
         , sep_t       : strlist_elements_strl \
     )(list, from, n, sep)
 
-/* The following are shorthands for element()/elements(),
+/* The following are shorthands for elements(),
  *  with specific numbers which may or may not be length specific
  *
  * Visual explanation:
@@ -509,6 +490,10 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
  *  Head <-->
  *  Tail      <---------------->
  */
+
+// required to avoid double evaluation
+thread_local size_t _strlist_len_tmp;
+
 #define strlist_root(list, sep) (\
     _strlist_len_tmp = strlist_len(list, sep), \
     strlist_elements(list, 0, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
@@ -529,12 +514,13 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
 
 /* Iteration
  *
- * Faster than a naiv implementation.
- *
  * While individual operations are reasonably fast,
  *  you are not supposed to grind strlist-s like real *lists*,
  *  instead, you are advised to convert them to a proper data structure
  *  with a foreach.
+ *
+ * Instead of repeatedly copying to the start,
+ *  we null-terminate in place during iteration.
  *
  * Foreach does not destroy the source strlist to avoid confusion. // XXX
  */
