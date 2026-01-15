@@ -48,6 +48,6 @@ foreach_strlist(list, ',', a) {
 }
 
 // Variants
-const char * list2 = "parrot, elephant, cat"; // works -> sep = ", ")
-const char * list3 = "parrot, elephant,cat";  // works -> sep = (const char * const []){",", ", ", NULL})
+const char * list2 = "parrot, elephant, cat"; // works w/ sep = ", ")
+const char * list3 = "parrot, elephant,cat";  // works w/ sep = (const char * const []){",", ", ", NULL})
 ```
