@@ -34,8 +34,8 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep);
 // --- Generics
 #define strlist_len(list, sep) \
     _Generic(sep                         \
-        , char        : strlist_len_char \
         , int         : strlist_len_char \
+        , char        : strlist_len_char \
         , char*       : strlist_len_str  \
         , const char* : strlist_len_str  \
         , sep_t       : strlist_len_strl \
@@ -47,8 +47,8 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep);
  */
 #define strlist_element(list, n, sep) \
     _Generic(sep                             \
-        , char        : strlist_element_char \
         , int         : strlist_element_char \
+        , char        : strlist_element_char \
         , char*       : strlist_element_str  \
         , const char* : strlist_element_str  \
         , sep_t       : strlist_element_strl \
@@ -58,8 +58,8 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep);
  */
 #define strlist_elements(list, from, n, sep) \
     _Generic(sep                              \
-        , char        : strlist_elements_char \
         , int         : strlist_elements_char \
+        , char        : strlist_elements_char \
         , char*       : strlist_elements_str  \
         , const char* : strlist_elements_str  \
         , sep_t       : strlist_elements_strl \
