@@ -9,6 +9,142 @@
 /* The string based list is a common pattern,
  *  as it is the most intuitive way to serialize a list.
  */
+typedef char* strlist;
+typedef const char* cstrlist;
+
+// Char variants
+size_t  strlist_len_char(cstrlist list, char sep);
+size_t  strlist_element_position_char(cstrlist list, size_t n, char sep);
+char *  strlist_element_char(strlist list, size_t n, char sep);
+strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep);
+
+// Char* variants
+size_t  strlist_len_str(cstrlist list, const char * sep);
+size_t  strlist_element_position_str(cstrlist list, size_t n, const char * sep);
+char *  strlist_element_str(strlist list, size_t n, const char * sep);
+strlist strlist_elements_str(strlist list, size_t from, size_t n, const char * sep);
+
+// Char** variants
+typedef const char * const * sep_t;
+size_t  strlist_len_strl(cstrlist list, sep_t sep);
+size_t  strlist_element_position_strl(cstrlist list, size_t n, sep_t sep);
+char *  strlist_element_strl(strlist list, size_t n, sep_t sep);
+strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep);
+
+// --- Generics
+#define strlist_len(list, sep) \
+    _Generic(sep                         \
+        , char        : strlist_len_char \
+        , int         : strlist_len_char \
+        , char*       : strlist_len_str  \
+        , const char* : strlist_len_str  \
+        , sep_t       : strlist_len_strl \
+    )(list, sep)
+
+/* This function in an abstract sense performs list indexing.
+ *  The result overwrites the `list` argument and is returned.
+ *  (We know that this may never result in an overflow.)
+ */
+#define strlist_element(list, n, sep) \
+    _Generic(sep                             \
+        , char        : strlist_element_char \
+        , int         : strlist_element_char \
+        , char*       : strlist_element_str  \
+        , const char* : strlist_element_str  \
+        , sep_t       : strlist_element_strl \
+    )(list, n, sep)
+
+/* This function returns a range.
+ */
+#define strlist_elements(list, from, n, sep) \
+    _Generic(sep                              \
+        , char        : strlist_elements_char \
+        , int         : strlist_elements_char \
+        , char*       : strlist_elements_str  \
+        , const char* : strlist_elements_str  \
+        , sep_t       : strlist_elements_strl \
+    )(list, from, n, sep)
+
+/* The following are shorthands for elements(),
+ *  with specific numbers which may or may not be length specific
+ *
+ * Visual explanation:
+ *       this/is/my/example/path
+ *  Root <---------------->
+ *  Base                    <-->
+ *  Head <-->
+ *  Tail      <---------------->
+ */
+#define strlist_root(list, sep) (\
+    _strlist_len_tmp = strlist_len(list, sep), \
+    strlist_elements(list, 0, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
+)
+
+#define strlist_base(list, sep) (\
+    _strlist_len_tmp = strlist_len(list, sep), \
+    strlist_elements(list, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, 1, sep) \
+)
+
+#define strlist_head(list, sep) \
+    strlist_elements(list, 0, 1, sep)
+
+#define strlist_tail(list, sep) (\
+    _strlist_len_tmp = strlist_len(list, sep), \
+    strlist_elements(list, 1, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
+)
+
+/* Iteration
+ *
+ * While individual operations are reasonably fast,
+ *  you are not supposed to grind strlist-s like real *lists*,
+ *  instead, you are advised to convert them to a proper data structure
+ *  with a foreach.
+ *
+ * Instead of repeatedly copying to the start,
+ *  we null-terminate in place during iteration.
+ *
+ * Foreach does not destroy the source strlist to avoid confusion. // XXX
+ */
+#define strlist_iterator(list_, sep_) struct { \
+    char mutable_copy[strlen(list_)+1]; \
+    typeof(sep_) sep;                   \
+    size_t i;                           \
+    size_t n;                           \
+    size_t offset;                      \
+    size_t next_offset;                 \
+}
+
+#define strlist_iterator_init(iter, list_, sep_) ( \
+    memcpy(iter.mutable_copy, list_, sizeof(iter.mutable_copy)), \
+    iter.sep = sep_,                                             \
+    iter.i = 0,                                                  \
+    iter.n = strlist_len(list_, sep_)                            \
+)
+
+#define strlist_iterator_next(iter) ( \
+    iter.i == iter.n                                                                \
+        ? NULL                                                                      \
+        :                                                                           \
+            (                                                                       \
+                strlist_element(iter.mutable_copy + iter.next_offset, 0, iter.sep), \
+                iter.offset = iter.next_offset,                                     \
+                iter.next_offset += strlen(iter.mutable_copy + iter.offset) + 1,    \
+                ++iter.i,                                                           \
+                iter.mutable_copy + iter.offset                                     \
+            )                                                                       \
+)                                                                                   \
+
+#define foreach_strlist(list, sep, i_) \
+    for (                                                                 \
+      strlist_iterator(list, sep) it = {};                                \
+      (it.i != 0 || strlist_iterator_init(it, list, sep)) && it.i < it.n; \
+    )                                                                     \
+        for (                                                             \
+          char * i_ = strlist_iterator_next(it);                          \
+          i_ != NULL;                                                     \
+          i_ = strlist_iterator_next(it)                                  \
+        )
+
 
 /* Notes:
  *  + we very consciously made the decision to not take a destination operand;
@@ -20,8 +156,8 @@
  *  + a strlist is considered to have 0 elements if and only if when the string is of length 0
  */
 
-typedef char* strlist;
-typedef const char* cstrlist;
+// required to avoid double evaluation
+thread_local size_t _strlist_len_tmp;
 
 // --- Char variants
 size_t strlist_len_char(cstrlist list, char sep) {
@@ -437,131 +573,5 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
     list[0] = '\0';
     return list;
 }
-
-// --- Generics
-/* For convencience, we offer these in 3 overloads
- *  sharing a generic interface.
- *
- * Char     - fastest
- * String   - slightly slower
- * String[] - slowest; null terminated array of strings
- */
-
-#define strlist_len(list, sep) \
-    _Generic(sep                         \
-        , char        : strlist_len_char \
-        , int         : strlist_len_char \
-        , char*       : strlist_len_str  \
-        , const char* : strlist_len_str  \
-        , sep_t       : strlist_len_strl \
-    )(list, sep)
-
-/* This function in an abstract sense performs list indexing.
- *  The result overwrites the `list` argument and is returned.
- *  (We know that this may never result in an overflow.)
- */
-#define strlist_element(list, n, sep) \
-    _Generic(sep                             \
-        , char        : strlist_element_char \
-        , int         : strlist_element_char \
-        , char*       : strlist_element_str  \
-        , const char* : strlist_element_str  \
-        , sep_t       : strlist_element_strl \
-    )(list, n, sep)
-
-/* This function returns a range.
- */
-#define strlist_elements(list, from, n, sep) \
-    _Generic(sep                              \
-        , char        : strlist_elements_char \
-        , int         : strlist_elements_char \
-        , char*       : strlist_elements_str  \
-        , const char* : strlist_elements_str  \
-        , sep_t       : strlist_elements_strl \
-    )(list, from, n, sep)
-
-/* The following are shorthands for elements(),
- *  with specific numbers which may or may not be length specific
- *
- * Visual explanation:
- *       this/is/my/example/path
- *  Root <---------------->
- *  Base                    <-->
- *  Head <-->
- *  Tail      <---------------->
- */
-
-// required to avoid double evaluation
-thread_local size_t _strlist_len_tmp;
-
-#define strlist_root(list, sep) (\
-    _strlist_len_tmp = strlist_len(list, sep), \
-    strlist_elements(list, 0, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
-)
-
-#define strlist_base(list, sep) (\
-    _strlist_len_tmp = strlist_len(list, sep), \
-    strlist_elements(list, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, 1, sep) \
-)
-
-#define strlist_head(list, sep) \
-    strlist_elements(list, 0, 1, sep)
-
-#define strlist_tail(list, sep) (\
-    _strlist_len_tmp = strlist_len(list, sep), \
-    strlist_elements(list, 1, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
-)
-
-/* Iteration
- *
- * While individual operations are reasonably fast,
- *  you are not supposed to grind strlist-s like real *lists*,
- *  instead, you are advised to convert them to a proper data structure
- *  with a foreach.
- *
- * Instead of repeatedly copying to the start,
- *  we null-terminate in place during iteration.
- *
- * Foreach does not destroy the source strlist to avoid confusion. // XXX
- */
-#define strlist_iterator(list_, sep_) struct { \
-    char mutable_copy[strlen(list_)+1]; \
-    typeof(sep_) sep;                   \
-    size_t i;                           \
-    size_t n;                           \
-    size_t offset;                      \
-    size_t next_offset;                 \
-}
-
-#define strlist_iterator_init(iter, list_, sep_) ( \
-    memcpy(iter.mutable_copy, list_, sizeof(iter.mutable_copy)), \
-    iter.sep = sep_,                                             \
-    iter.i = 0,                                                  \
-    iter.n = strlist_len(list_, sep_)                            \
-)
-
-#define strlist_iterator_next(iter) ( \
-    iter.i == iter.n                                                                \
-        ? NULL                                                                      \
-        :                                                                           \
-            (                                                                       \
-                strlist_element(iter.mutable_copy + iter.next_offset, 0, iter.sep), \
-                iter.offset = iter.next_offset,                                     \
-                iter.next_offset += strlen(iter.mutable_copy + iter.offset) + 1,    \
-                ++iter.i,                                                           \
-                iter.mutable_copy + iter.offset                                     \
-            )                                                                       \
-)                                                                                   \
-
-#define foreach_strlist(list, sep, i_) \
-    for (                                                                 \
-      strlist_iterator(list, sep) it = {};                                \
-      (it.i != 0 || strlist_iterator_init(it, list, sep)) && it.i < it.n; \
-    )                                                                     \
-        for (                                                             \
-          char * i_ = strlist_iterator_next(it);                          \
-          i_ != NULL;                                                     \
-          i_ = strlist_iterator_next(it)                                  \
-        )
 
 #endif
