@@ -1,5 +1,6 @@
 // @BAKE gcc -o $*.out $@ -std=c23 -Wall -Wpedantic -ggdb -lcriterion && ./test.out --verbose=0
 #include <criterion/criterion.h>
+#define STRLIST_IMPLEMENTATION
 #include "strlist.h"
 
 // NOTE: \n\r replaced with \\n\\r so we can print without an anurism
