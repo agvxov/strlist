@@ -32,6 +32,7 @@ char *  strlist_element_strl(strlist list, size_t n, sep_t sep);
 strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep);
 
 // --- Generics
+#ifndef __cplusplus
 #define strlist_len(list, sep) \
     _Generic(sep                         \
         , int         : strlist_len_char \
@@ -92,6 +93,7 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep);
     _strlist_len_tmp = strlist_len(list, sep), \
     strlist_elements(list, 1, _strlist_len_tmp ? _strlist_len_tmp-1 : 0, sep) \
 )
+#endif
 
 /* Iteration
  *
@@ -105,6 +107,7 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep);
  *
  * Foreach does not destroy the source strlist to avoid confusion. // XXX
  */
+#ifndef __cplusplus
 #define strlist_iterator(list_, sep_) struct { \
     char mutable_copy[strlen(list_)+1]; \
     typeof(sep_) sep;                   \
@@ -144,6 +147,34 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep);
           i_ != NULL;                                                     \
           i_ = strlist_iterator_next(it)                                  \
         )
+#else
+#include <cstring>
+#include <string>
+#include <utility>
+template <class F>
+void foreach_strlist(const char *list, char sep, F &&fn) {
+    if (list == nullptr) {
+        return;
+    }
+
+    std::string mutable_copy(list);
+    char *cursor = mutable_copy.data();
+
+    while (cursor != nullptr && *cursor != '\0') {
+        char *token = cursor;
+        char *delim = std::strchr(cursor, sep);
+
+        if (delim != nullptr) {
+            *delim = '\0';
+            cursor = delim + 1;
+        } else {
+            cursor = nullptr;
+        }
+
+        std::forward<F>(fn)(token);
+    }
+}
+#endif
 
 
 /* Notes:
@@ -205,6 +236,12 @@ size_t strlist_element_position_char(cstrlist list, size_t n, char sep) {
 char * strlist_element_char(strlist list, size_t n, char sep) {
     assert(list);
 
+    if (0) {
+      out_of_range:
+        list[0] = '\0';
+        return list;
+    }
+
     // Find start
     const size_t start_pos = strlist_element_position_char(list, n, sep);
     if (start_pos == SIZE_MAX) { goto out_of_range; }
@@ -220,14 +257,16 @@ char * strlist_element_char(strlist list, size_t n, char sep) {
     memmove(list, start, end - start);
     list[end - start] = '\0';
     return list;
-
-  out_of_range:
-    list[0] = '\0';
-    return list;
 }
 
 strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep) {
     assert(list);
+
+    if (0) {
+      out_of_range:
+        list[0] = '\0';
+        return list;
+    }
 
     // Find start
     char * start;
@@ -269,10 +308,6 @@ strlist strlist_elements_char(strlist list, size_t from, size_t n, char sep) {
     // Finalize
     memmove(list, start, end - start);
     list[end - start] = '\0';
-    return list;
-
-  out_of_range:
-    list[0] = '\0';
     return list;
 }
 
@@ -325,6 +360,12 @@ char * strlist_element_str(strlist list, size_t n, const char * sep) {
     assert(list);
     assert(sep);
 
+    if (0) {
+      out_of_range:
+        list[0] = '\0';
+        return list;
+    }
+
     // Find start
     const size_t start_pos = strlist_element_position_str(list, n, sep);
     if (start_pos == SIZE_MAX) { goto out_of_range; }
@@ -340,15 +381,17 @@ char * strlist_element_str(strlist list, size_t n, const char * sep) {
     memmove(list, start, end - start);
     list[end - start] = '\0';
     return list;
-
-  out_of_range:
-    list[0] = '\0';
-    return list;
 }
 
 strlist strlist_elements_str(strlist list, size_t from, size_t n, const char * sep) {
     assert(list);
     assert(sep);
+
+    if (0) {
+      out_of_range:
+        list[0] = '\0';
+        return list;
+    }
 
     const bool has_leading_separator = !strncmp(list, sep, strlen(sep));
 
@@ -397,10 +440,6 @@ strlist strlist_elements_str(strlist list, size_t from, size_t n, const char * s
     memmove(list, start, end - start);
     list[end - start] = '\0';
     return list;
-
-  out_of_range:
-    list[0] = '\0';
-    return list;
 }
 
 // --- String array
@@ -427,7 +466,10 @@ int strlist_strstrlcmp_(const char * s, sep_t sep, const char * * match) {
 char * strlist_strstrl_(const char * s, sep_t sep, const char * * match) {
     char * r = NULL;
     for (auto w = sep; *w != NULL; w++) {
-        char * i = strstr(s, *w);
+        /* NOTE: strstr under C++ is overloaded to const correct the first argument
+         *        fuck you Bjorn Stonesoup!
+         */
+        char * i = (char*)strstr(s, *w);
         if (i
         && (r == NULL || r > i)) {
             *match = *w;
@@ -493,6 +535,12 @@ char * strlist_element_strl(strlist list, size_t n, sep_t sep) {
     assert(list);
     assert(sep);
 
+    if (0) {
+      out_of_range:
+        list[0] = '\0';
+        return list;
+    }
+
     // Find start
     const size_t start_pos = strlist_element_position_strl(list, n, sep);
     if (start_pos == SIZE_MAX) { goto out_of_range; }
@@ -509,15 +557,17 @@ char * strlist_element_strl(strlist list, size_t n, sep_t sep) {
     memmove(list, start, end - start);
     list[end - start] = '\0';
     return list;
-
-  out_of_range:
-    list[0] = '\0';
-    return list;
 }
 
 strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
     assert(list);
     assert(sep);
+
+    if (0) {
+      out_of_range:
+        list[0] = '\0';
+        return list;
+    }
 
     const char * leading_separator;
     const bool has_leading_separator = !strlist_strstrlcmp_(list, sep, &leading_separator);
@@ -567,10 +617,6 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
     // Finalize
     memmove(list, start, end - start);
     list[end - start] = '\0';
-    return list;
-
-  out_of_range:
-    list[0] = '\0';
     return list;
 }
 
