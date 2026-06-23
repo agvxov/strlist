@@ -187,6 +187,8 @@ void foreach_strlist(const char *list, char sep, F &&fn) {
  *  + a strlist is considered to have 0 elements if and only if when the string is of length 0
  */
 
+#ifdef STRLIST_IMPLEMENTATION
+
 // required to avoid double evaluation
 thread_local size_t _strlist_len_tmp;
 
@@ -619,5 +621,6 @@ strlist strlist_elements_strl(strlist list, size_t from, size_t n, sep_t sep) {
     list[end - start] = '\0';
     return list;
 }
+#endif // STRLIST_IMPLEMENTATION
 
 #endif
